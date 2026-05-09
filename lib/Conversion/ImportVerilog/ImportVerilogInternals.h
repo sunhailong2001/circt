@@ -438,6 +438,9 @@ struct Context {
   /// reference
   Value currentThisRef = {};
 
+  /// Function or task body currently being converted.
+  FunctionLowering *currentFunction = nullptr;
+
   /// Variable that tracks the queue which we are currently converting the index
   /// expression for. This is necessary to implement the `$` operator, which
   /// returns the index of the last element of the queue.

@@ -1770,6 +1770,10 @@ Context::convertFunction(const slang::ast::SubroutineSymbol &subroutine) {
   currentThisRef = valueSymbols.lookup(subroutine.thisVar);
   llvm::scope_exit restoreThis([&] { currentThisRef = savedThis; });
 
+  auto savedFunction = currentFunction;
+  currentFunction = lowering;
+  llvm::scope_exit restoreFunction([&] { currentFunction = savedFunction; });
+
   lowering->isConverting = true;
   llvm::scope_exit convertingGuard([&] { lowering->isConverting = false; });
 
