@@ -728,6 +728,15 @@ struct StmtVisitor {
 
   // Handle return statements.
   LogicalResult visit(const slang::ast::ReturnStatement &stmt) {
+    if (context.currentFunction && context.currentFunction->isCoroutine()) {
+      if (stmt.expr)
+        return mlir::emitError(loc)
+               << "cannot return a value from a SystemVerilog task";
+      moore::ReturnOp::create(builder, loc);
+      setTerminated();
+      return success();
+    }
+
     if (stmt.expr) {
       auto expr = context.convertRvalueExpression(*stmt.expr);
       if (!expr)

@@ -2176,6 +2176,14 @@ task automatic DelayControl(time x);
   #x dummyA();
 endtask
 
+// CHECK-LABEL: moore.coroutine private @TaskExplicitReturn(
+task automatic TaskExplicitReturn(bit x);
+  // CHECK: cf.cond_br
+  // CHECK: moore.return
+  // CHECK: moore.return
+  if (x) return;
+endtask
+
 // CHECK-LABEL: moore.coroutine private @SignalEventControl(
 // CHECK-SAME: [[X:%[^:]+]]: !moore.ref<i32>
 // CHECK-SAME: [[Y:%[^:]+]]: !moore.ref<i32>
