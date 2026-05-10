@@ -332,3 +332,18 @@ module Foo;
   // expected-error @below {{'always' procedure does not advance time and so will create a simulation deadlock}}
   always a = ~a;
 endmodule
+
+// -----
+class VirtualTaskClass;
+  virtual task run();
+    #1;
+  endtask
+endclass
+
+module VirtualTaskCall;
+  initial begin
+    VirtualTaskClass obj = new;
+    // expected-error @below {{virtual task calls are not supported}}
+    obj.run();
+  end
+endmodule
