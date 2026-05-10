@@ -1758,6 +1758,11 @@ struct RvalueExprVisitor : public ExprVisitor {
                                         explicitArguments);
     }
 
+    if (lowering->isCoroutine()) {
+      mlir::emitError(loc) << "virtual task calls are not supported";
+      return {};
+    }
+
     auto funcName = subroutine->name;
     auto method = moore::VTableLoadMethodOp::create(
         builder, loc, funcTy, actualThisRef,
@@ -1881,6 +1886,8 @@ struct RvalueExprVisitor : public ExprVisitor {
       auto funcOp = cast<mlir::func::FuncOp>(lowering->op);
       callOp = mlir::func::CallOp::create(builder, loc, funcOp, arguments);
     }
+    if (!callOp)
+      return {};
 
     auto result = resultTypes.size() > 0 ? callOp->getOpResult(0) : Value{};
     // For calls to void functions we need to have a value to return from this
