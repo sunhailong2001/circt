@@ -96,6 +96,13 @@ hw.module @duplicate_arc(in %a : i1, out result : i1) attributes {synth.mapping_
 
 // -----
 
+// expected-error@+1 {{expected synth.linear_timing_arc in synth.mapping_cost arcs}}
+hw.module @invalid_arc_type(in %a : i1, out result : i1) attributes {synth.mapping_cost = #synth.mapping_cost<area = 1.0 : f64, arcs = ["not-an-arc"], input_caps = {}>} {
+  hw.output %a : i1
+}
+
+// -----
+
 // expected-error@+1 {{expected library module to have an output}}
 hw.module @no_output() attributes {synth.mapping_cost = #synth.mapping_cost<area = 1.0 : f64, arcs = [], input_caps = {}>} {
 }
