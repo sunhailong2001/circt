@@ -89,6 +89,13 @@ hw.module @too_many_input_bits(in %a0 : i1, in %a1 : i1, in %a2 : i1, in %a3 : i
 
 // -----
 
+// expected-error@+1 {{expected synth.linear_timing_arc in synth.mapping_cost arcs}}
+hw.module @invalid_arc_type(in %a : i1, out result : i1) attributes {synth.mapping_cost = #synth.mapping_cost<area = 1.0 : f64, arcs = [#synth.polarity<positive>], input_caps = {}>} {
+  hw.output %a : i1
+}
+
+// -----
+
 // expected-error@+1 {{duplicate mapping cost arc for input 'a'}}
 hw.module @duplicate_arc(in %a : i1, out result : i1) attributes {synth.mapping_cost = #synth.mapping_cost<area = 1.0 : f64, arcs = [#synth.linear_timing_arc<"result", "a", 1, 0, #synth.polarity<positive>>, #synth.linear_timing_arc<"result", "a", 2, 0, #synth.polarity<positive>>], input_caps = {}>} {
   hw.output %a : i1
