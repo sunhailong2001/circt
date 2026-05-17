@@ -165,6 +165,20 @@ hw.module @Sequences(in %clk: i1, in %a: i1, in %b: i1) {
   // CHECK: assert property (b ##0 (@(posedge clk) a));
   %k4 = ltl.concat %b, %k0 : i1, !ltl.sequence
   sv.assert_property %k4 : !ltl.sequence
+
+  // CHECK: assert property (@(posedge clk) ##2 a);
+  %cd0 = ltl.clocked_delay %a, posedge %clk, 2, 0 : i1
+  sv.assert_property %cd0 : !ltl.sequence
+  // CHECK: assert property (@(negedge clk) ##[3:5] a);
+  %cd1 = ltl.clocked_delay %a, negedge %clk, 3, 2 : i1
+  sv.assert_property %cd1 : !ltl.sequence
+  // CHECK: assert property (@(edge clk) ##[+] a);
+  %cd2 = ltl.clocked_delay %a, edge %clk, 1 : i1
+  sv.assert_property %cd2 : !ltl.sequence
+  // CHECK: assert property (b ##0 (@(posedge clk) ##1 a));
+  %cd3 = ltl.clocked_delay %a, posedge %clk, 1, 0 : i1
+  %c4 = ltl.concat %b, %cd3 : i1, !ltl.sequence
+  sv.assert_property %c4 : !ltl.sequence
 }
 
 // CHECK-LABEL: module Properties

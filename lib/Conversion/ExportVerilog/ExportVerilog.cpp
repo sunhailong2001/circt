@@ -3598,6 +3598,7 @@ private:
   EmittedProperty visitLTL(ltl::OrOp op);
   EmittedProperty visitLTL(ltl::IntersectOp op);
   EmittedProperty visitLTL(ltl::DelayOp op);
+  EmittedProperty visitLTL(ltl::ClockedDelayOp op);
   EmittedProperty visitLTL(ltl::ConcatOp op);
   EmittedProperty visitLTL(ltl::RepeatOp op);
   EmittedProperty visitLTL(ltl::GoToRepeatOp op);
@@ -3792,6 +3793,40 @@ EmittedProperty PropertyEmitter::visitLTL(ltl::DelayOp op) {
   ps << PP::space;
   emitNestedProperty(op.getInput(), PropertyPrecedence::Concat);
   return {PropertyPrecedence::Concat};
+}
+
+EmittedProperty PropertyEmitter::visitLTL(ltl::ClockedDelayOp op) {
+  ps << "@(";
+  ps.scopedBox(PP::ibox2, [&] {
+    ps << PPExtString(stringifyClockEdge(op.getEdge())) << PP::space;
+    emitNestedProperty(op.getClock(), PropertyPrecedence::Lowest);
+    ps << ")";
+  });
+  ps << PP::space << "##";
+  if (auto length = op.getLength()) {
+    if (*length == 0) {
+      ps.addAsString(op.getDelay());
+    } else {
+      ps << "[";
+      ps.addAsString(op.getDelay());
+      ps << ":";
+      ps.addAsString(op.getDelay() + *length);
+      ps << "]";
+    }
+  } else {
+    if (op.getDelay() == 0) {
+      ps << "[*]";
+    } else if (op.getDelay() == 1) {
+      ps << "[+]";
+    } else {
+      ps << "[";
+      ps.addAsString(op.getDelay());
+      ps << ":$]";
+    }
+  }
+  ps << PP::space;
+  emitNestedProperty(op.getInput(), PropertyPrecedence::Concat);
+  return {PropertyPrecedence::Clocking};
 }
 
 void PropertyEmitter::emitLTLConcat(ValueRange inputs) {
