@@ -214,7 +214,8 @@ struct ConstantTimeOpLowering
     else
       return rewriter.notifyMatchFailure(
           op, "time units smaller than `fs` are not supported");
-    if (value > std::numeric_limits<uint64_t>::max() / scale)
+    if (value >
+        static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) / scale)
       return rewriter.notifyMatchFailure(
           op, "time value does not fit into `i64` femtoseconds");
     rewriter.replaceOpWithNewOp<LLVM::ConstantOp>(op, rewriter.getI64Type(),
