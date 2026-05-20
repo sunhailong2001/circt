@@ -278,15 +278,21 @@ struct OrOfMuxToMuxChain : public OpRewritePattern<OrOp> {
   // one condition can be true at a time.
   //
   // Currently we take a shortcut and check if the conditions are defined by
-  // ICmpEqs for different values. This is a common pattern in priority
-  // encoders.
+  // ICmpEqs of the same value against different constants. This is a common
+  // pattern in priority encoders.
   bool areConditionsIndependent(ArrayRef<Value> conditions) const {
+    Value indexValue;
     DenseSet<IntegerAttr> seenConstants;
     for (Value v : conditions) {
       auto icmp = v.getDefiningOp<ICmpOp>();
       IntegerAttr value;
       if (!icmp || icmp.getPredicate() != ICmpPredicate::eq ||
           !matchPattern(icmp.getRhs(), mlir::m_Constant(&value)))
+        return false;
+
+      if (!indexValue)
+        indexValue = icmp.getLhs();
+      else if (icmp.getLhs() != indexValue)
         return false;
 
       if (!seenConstants.insert(value).second)

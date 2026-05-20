@@ -36,3 +36,16 @@ hw.module @OrOfMuxesNotGuaranteedIndependent(in %c0: i1, in %c1: i1, in %a0: i4,
   %or = comb.or %m0, %m1 : i4
   hw.output %or : i4
 }
+
+// CHECK-LABEL: hw.module @OrOfMuxesDifferentIndexValues
+// CHECK: comb.or
+hw.module @OrOfMuxesDifferentIndexValues(in %c0: i4, in %c1: i4, in %a0: i4, in %a1: i4, out y: i4) {
+  %cst0_i4 = hw.constant 0 : i4
+  %cst1_i4 = hw.constant 1 : i4
+  %cmp0 = comb.icmp eq %c0, %cst0_i4 : i4
+  %cmp1 = comb.icmp eq %c1, %cst1_i4 : i4
+  %m0 = comb.mux bin %cmp0, %a0, %cst0_i4 : i4
+  %m1 = comb.mux bin %cmp1, %a1, %cst0_i4 : i4
+  %or = comb.or bin %m0, %m1 : i4
+  hw.output %or : i4
+}
