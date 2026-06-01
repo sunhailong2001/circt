@@ -35,8 +35,8 @@ TEST(ESITypesTest, VoidTypeSerialization) {
   EXPECT_THROW(voidType.ensureValid(invalidValue), std::runtime_error);
 
   // Void carries no logical data, so serialize produces zero bits.
-  // Transports (DMA, cosim, etc.) that require a non-empty message add
-  // their own placeholder byte; that pad/strip lives in the channel-port
+  // Transports that require a non-empty message add their own placeholder
+  // byte; that pad/strip lives in the channel-port
   // base classes (WriteChannelPort::maybePadEmptyMessage /
   // ReadChannelPort::invokeCallback), not at the type-serialization layer.
   EXPECT_EQ(voidType.getBitWidth(), 0)
