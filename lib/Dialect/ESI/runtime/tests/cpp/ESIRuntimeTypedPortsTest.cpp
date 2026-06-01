@@ -14,6 +14,7 @@
 #include <chrono>
 #include <cstring>
 #include <deque>
+#include <vector>
 
 using namespace esi;
 
@@ -427,6 +428,35 @@ public:
 private:
   std::shared_ptr<bool> shouldThrow;
 };
+
+TEST(TypedPortsTest, ReadChannelPortZeroWidthAcceptsEmptyAndPlaceholder) {
+  VoidType voidType("void");
+  CallbackDrivenMockReadPort mock(&voidType);
+
+  std::vector<size_t> observedSizes;
+  mock.connect([&](MessageData data) {
+    observedSizes.push_back(data.getSize());
+    return true;
+  });
+
+  EXPECT_TRUE(mock.deliver(std::make_unique<MessageData>()));
+  uint8_t placeholder = 0;
+  EXPECT_TRUE(mock.deliver(std::make_unique<MessageData>(&placeholder, 1)));
+
+  ASSERT_EQ(observedSizes.size(), 2u);
+  EXPECT_EQ(observedSizes[0], 0u);
+  EXPECT_EQ(observedSizes[1], 0u);
+}
+
+TEST(TypedPortsTest, ReadChannelPortZeroWidthRejectsOversizedPayload) {
+  VoidType voidType("void");
+  CallbackDrivenMockReadPort mock(&voidType);
+  mock.connect([](MessageData) { return true; });
+
+  EXPECT_THROW(
+      mock.deliver(std::make_unique<MessageData>(std::vector<uint8_t>{0, 0})),
+      std::runtime_error);
+}
 
 static MessageData packUint32Words(std::initializer_list<uint32_t> values) {
   std::vector<uint8_t> bytes(values.size() * sizeof(uint32_t));

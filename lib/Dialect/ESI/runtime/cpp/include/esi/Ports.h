@@ -207,10 +207,10 @@ public:
   }
 
   /// Get the size of each frame in bytes. For windowed types, this is the
-  /// lowered type's width; otherwise, the port type's width. Transports
-  /// (DMA engines, cosim, etc.) require every message to be at least one
-  /// byte, so void / zero-width port types are reported as 1 byte here; the
-  /// transport pads or strips that placeholder byte transparently.
+  /// lowered type's width; otherwise, the port type's width. Some transports
+  /// require every message to be at least one byte, so void / zero-width port
+  /// types are reported as 1 byte here; the transport pads or strips that
+  /// placeholder byte transparently when needed.
   size_t getFrameSizeBytes() const {
     size_t bytes = translationInfo ? translationInfo->frameBytes
                                    : utils::bitsToBytes(type->getBitWidth());
