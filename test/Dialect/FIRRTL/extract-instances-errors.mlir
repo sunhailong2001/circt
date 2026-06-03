@@ -31,10 +31,10 @@ firrtl.circuit "ExtractClockGatesInstanceChoice" attributes {annotations = [{cla
   }
   firrtl.extmodule private @EICG_wrapper() attributes {defname = "EICG_wrapper"}
   firrtl.module private @A() attributes {annotations = [{class = "sifive.enterprise.firrtl.MarkDUTAnnotation"}]} {
-    // expected-error @below {{cannot extract instance `gate` through a non-InstanceOp parent}}
     // FAILURE-IR: firrtl.module private @A()
     // FAILURE-IR: firrtl.instance gate @EICG_wrapper()
     // FAILURE-IR: firrtl.module private @B()
+    // expected-error @below {{cannot extract instance `gate` through a non-InstanceOp parent}}
     firrtl.instance gate @EICG_wrapper()
   }
   firrtl.module private @B() {}
