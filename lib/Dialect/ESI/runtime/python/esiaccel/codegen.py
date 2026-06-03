@@ -1132,6 +1132,8 @@ class CppTypeEmitter:
     needed and a single uniform declaration form covers every type.
     """
     field_cpp = self._cpp_type(field_type)
+    if field_cpp == "void":
+      return f"// void {field_name};"
     wrapped = self._unwrap_aliases(field_type)
     if isinstance(wrapped, (types.BitsType, types.IntType)) and \
        wrapped.bit_width % 8 != 0:
@@ -1232,9 +1234,11 @@ class CppTypeEmitter:
     if data_field.num_items != 1:
       raise ValueError("window codegen currently supports numItems == 1")
 
-    ctor_params = [(name, field_type)
-                   for name, field_type in into_type.fields
-                   if name != list_field_name]
+    ctor_params = [
+        (name, field_type)
+        for name, field_type in into_type.fields
+        if name != list_field_name and self._cpp_type(field_type) != "void"
+    ]
 
     header_fields = []
     header_bytes = 0
@@ -1534,6 +1538,8 @@ class CppTypeEmitter:
       if field_type is None:
         continue
       cpp = self._cpp_type(field_type)
+      if cpp == "void":
+        continue
       unwrapped_header = self._unwrap_aliases(field_type)
       # Aggregate types (structs/unions/std::array) get a const-ref accessor;
       # bit-vector scalars are returned by value.
@@ -1557,6 +1563,8 @@ class CppTypeEmitter:
         elem_cpp = "value_type"
       else:
         elem_cpp = self._cpp_type(field_type)
+        if elem_cpp == "void":
+          continue
       # C++ does not allow forming a pointer-to-member for a bit-field, so for
       # non-byte-aligned integer fields we fall back to a lambda projection
       # (which copies by value on each dereference) instead of a

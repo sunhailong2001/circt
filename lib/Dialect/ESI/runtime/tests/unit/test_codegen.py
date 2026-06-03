@@ -470,6 +470,69 @@ def test_windowed_list_bitfield_scalar_data_uses_lambda():
   assert "std::vector<value_type> vals_vector() const" in hdr
 
 
+def test_windowed_list_void_fields_are_commented_out():
+  """Void fields in window frames must not produce invalid C++ APIs."""
+  uint8 = types.UIntType("ui8", 8)
+  uint16 = types.UIntType("ui16", 16)
+  void_t = types.VoidType("!esi.void")
+  list_id = "!esi.list<ui8>"
+  payloads = types.ListType(list_id, uint8)
+  arg_struct_id = (
+      f"!hw.struct<tag: ui8, client_data: void, payloads: {list_id}>")
+  arg_struct = types.StructType(arg_struct_id, [("tag", uint8),
+                                                ("client_data", void_t),
+                                                ("payloads", payloads)])
+  header_struct_id = (
+      "!hw.struct<tag: ui8, client_data: void, payloads_count: ui16>")
+  header_struct = types.StructType(header_struct_id,
+                                   [("tag", uint8), ("client_data", void_t),
+                                    ("payloads_count", uint16)])
+  data_struct_id = "!hw.struct<client_data: void, payloads: !hw.array<1xui8>>"
+  data_struct = types.StructType(
+      data_struct_id,
+      [("client_data", void_t),
+       ("payloads", types.ArrayType("!hw.array<1xui8>", uint8, 1))],
+  )
+  lowered_id = f"!hw.union<header: {header_struct_id}, data: {data_struct_id}>"
+  lowered = types.UnionType(lowered_id, [("header", header_struct),
+                                         ("data", data_struct)])
+  window_id = (f'!esi.window<"void_payloads", {arg_struct_id}, '
+               '[<"header", [<"tag">, <"client_data">, '
+               '<"payloads" countWidth 16>]>, '
+               '<"data", [<"client_data">, <"payloads", 1>]>]>')
+  window = types.WindowType(window_id, "void_payloads", arg_struct, lowered, [
+      types.WindowType.Frame(
+          "header",
+          [
+              types.WindowType.Field("tag", 0, 0),
+              types.WindowType.Field("client_data", 0, 0),
+              types.WindowType.Field("payloads", 0, 16),
+          ],
+      ),
+      types.WindowType.Frame(
+          "data",
+          [
+              types.WindowType.Field("client_data", 0, 0),
+              types.WindowType.Field("payloads", 1, 0),
+          ],
+      ),
+  ])
+
+  hdr = _generate_header([window])
+  win_name = _window_struct_name(hdr, "_void_payloads")
+  assert re.search(r"^\s*void\s+\w+;", hdr, re.M) is None, hdr
+  assert "// void client_data;" in hdr
+  assert f"{win_name}(uint8_t tag, const std::vector<value_type> &payloads)" in hdr
+  assert "void construct(uint8_t tag, std::vector<data_frame> frames)" in hdr
+  assert "client_data" not in re.search(
+      rf"{re.escape(win_name)}\(([^)]*)payloads\)", hdr).group(1)
+  assert "header.client_data" not in hdr
+  assert "&data_frame::client_data" not in hdr
+  assert "client_data_vector" not in hdr
+  assert "uint8_t tag() const { return header.tag; }" in hdr
+  assert "std::vector<value_type> payloads_vector() const" in hdr
+
+
 def test_size_assert_emitted_for_struct():
   """Each packed struct gets a `static_assert` pinning its `sizeof`."""
   uint16 = types.UIntType("ui16", 16)
