@@ -1,4 +1,5 @@
 // RUN: circt-opt --firrtl-extract-instances %s --split-input-file --verify-diagnostics
+// RUN: not circt-opt --firrtl-extract-instances %s --split-input-file --mlir-print-ir-after-failure 2>&1 | FileCheck %s --check-prefix=FAILURE-IR
 
 // Reject extraction on instance choice.
 firrtl.circuit "ExtractMemsChoiceOnMem" attributes {annotations = [{class = "sifive.enterprise.firrtl.ExtractSeqMemsFileAnnotation", filename = "SeqMems.txt"},
@@ -30,6 +31,9 @@ firrtl.circuit "ExtractClockGatesInstanceChoice" attributes {annotations = [{cla
   }
   firrtl.extmodule private @EICG_wrapper() attributes {defname = "EICG_wrapper"}
   firrtl.module private @A() attributes {annotations = [{class = "sifive.enterprise.firrtl.MarkDUTAnnotation"}]} {
+    // FAILURE-IR: firrtl.module private @A()
+    // FAILURE-IR: firrtl.instance gate @EICG_wrapper()
+    // FAILURE-IR: firrtl.module private @B()
     // expected-error @below {{cannot extract instance `gate` through a non-InstanceOp parent}}
     firrtl.instance gate @EICG_wrapper()
   }

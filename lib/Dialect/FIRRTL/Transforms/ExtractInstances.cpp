@@ -563,6 +563,27 @@ void ExtractInstancesPass::extractInstances() {
       llvm::dbgs() << inst << "\n";
     });
 
+    // Validate all parent uses before mutating the parent module.  Once ports
+    // are inserted and instance uses are rewired, a later pass failure would
+    // otherwise leave partially extracted IR behind.
+    auto *instParentNode =
+        instanceGraph->lookup(cast<igraph::ModuleOpInterface>(*parent));
+    SmallVector<InstanceOp> oldParentInsts;
+    bool invalidParent = false;
+    for (auto *instRecord : instParentNode->uses()) {
+      auto oldParentInst = dyn_cast<InstanceOp>(*instRecord->getInstance());
+      if (!oldParentInst) {
+        inst.emitError("cannot extract instance `")
+            << inst.getName() << "` through a non-InstanceOp parent";
+        anyFailures = true;
+        invalidParent = true;
+        continue;
+      }
+      oldParentInsts.push_back(oldParentInst);
+    }
+    if (invalidParent)
+      continue;
+
     // Add additional ports to the parent module as a replacement for the
     // instance port signals once the instance is extracted.
     unsigned numParentPorts = parent.getNumPorts();
@@ -625,16 +646,7 @@ void ExtractInstancesPass::extractInstances() {
     // Move the original instance one level up such that it is right next to
     // the instances of the parent module, and wire the instance ports up to
     // the newly added parent module ports.
-    auto *instParentNode =
-        instanceGraph->lookup(cast<igraph::ModuleOpInterface>(*parent));
-    for (auto *instRecord : instParentNode->uses()) {
-      auto oldParentInst = dyn_cast<InstanceOp>(*instRecord->getInstance());
-      if (!oldParentInst) {
-        inst.emitError("cannot extract instance `")
-            << inst.getName() << "` through a non-InstanceOp parent";
-        anyFailures = true;
-        continue;
-      }
+    for (auto oldParentInst : oldParentInsts) {
       auto newParent = oldParentInst->getParentOfType<FModuleLike>();
       LLVM_DEBUG(llvm::dbgs() << "- Updating " << oldParentInst << "\n");
       auto newParentInst = cast<InstanceOp>(
