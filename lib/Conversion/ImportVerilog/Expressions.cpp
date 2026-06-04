@@ -84,6 +84,18 @@ static Value getSelectIndex(Context &context, Location loc, Value index,
     return moore::SubOp::create(builder, loc, offsetConst, index);
 }
 
+/// Ensure an assignment pattern element list is ordered from most significant
+/// to least significant bits for a positional packed integer pattern.
+template <typename RangeT>
+static void orderPositionalIntPattern(RangeT &range,
+                                      const slang::ast::Type &type) {
+  if (!type.hasFixedRange())
+    return;
+  const slang::ConstantRange &cstRange = type.getFixedRange();
+  if (cstRange.left < cstRange.right)
+    std::reverse(std::begin(range), std::end(range));
+}
+
 /// Get the currently active timescale as an integer number of femtoseconds.
 static uint64_t getTimeScaleInFemtoseconds(Context &context) {
   static_assert(int(slang::TimeUnit::Seconds) == 0);
@@ -2143,7 +2155,10 @@ struct RvalueExprVisitor : public ExprVisitor {
         return {};
 
       assert(intType.getWidth() == elements->size());
-      std::reverse(elements->begin(), elements->end());
+      if (expr.kind == slang::ast::ExpressionKind::StructuredAssignmentPattern)
+        std::reverse(elements->begin(), elements->end());
+      else
+        orderPositionalIntPattern(*elements, *expr.type);
       return moore::ConcatOp::create(builder, loc, intType, *elements);
     }
 
