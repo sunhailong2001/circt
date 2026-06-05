@@ -573,7 +573,8 @@ void FunctionalReductionSolver::mergeEquivalentNodes() {
           // in the same block so merging cannot introduce use-before-def edges
           // or SSA cycles.
           return shouldReplaceOwner(user) &&
-                 user->getBlock() == defOp->getBlock();
+                 user->getBlock() == defOp->getBlock() &&
+                 defOp->isBeforeInBlock(user);
         });
       };
 
@@ -686,7 +687,8 @@ void FunctionalReductionSolver::mergeEquivalentNodes() {
     for (auto &member : plan.reachableMembers) {
       member.original.replaceUsesWithIf(plan.choice, [&](OpOperand &use) {
         auto *user = use.getOwner();
-        return user->getBlock() == plan.choice->getBlock();
+        return user->getBlock() == plan.choice->getBlock() &&
+               plan.choice->isBeforeInBlock(user);
       });
       if (member.original.use_empty())
         member.original.getDefiningOp()->erase();
