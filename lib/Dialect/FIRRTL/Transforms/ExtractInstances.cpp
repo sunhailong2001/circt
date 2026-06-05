@@ -563,6 +563,21 @@ void ExtractInstancesPass::extractInstances() {
       llvm::dbgs() << inst << "\n";
     });
 
+    auto *instParentNode =
+        instanceGraph->lookup(cast<igraph::ModuleOpInterface>(*parent));
+    bool hasNonInstanceParent = false;
+    for (auto *instRecord : instParentNode->uses()) {
+      if (isa<InstanceOp>(*instRecord->getInstance()))
+        continue;
+      inst.emitError("cannot extract instance `")
+          << inst.getName() << "` through a non-InstanceOp parent";
+      hasNonInstanceParent = true;
+    }
+    if (hasNonInstanceParent) {
+      anyFailures = true;
+      continue;
+    }
+
     // Add additional ports to the parent module as a replacement for the
     // instance port signals once the instance is extracted.
     unsigned numParentPorts = parent.getNumPorts();
@@ -625,16 +640,8 @@ void ExtractInstancesPass::extractInstances() {
     // Move the original instance one level up such that it is right next to
     // the instances of the parent module, and wire the instance ports up to
     // the newly added parent module ports.
-    auto *instParentNode =
-        instanceGraph->lookup(cast<igraph::ModuleOpInterface>(*parent));
     for (auto *instRecord : instParentNode->uses()) {
-      auto oldParentInst = dyn_cast<InstanceOp>(*instRecord->getInstance());
-      if (!oldParentInst) {
-        inst.emitError("cannot extract instance `")
-            << inst.getName() << "` through a non-InstanceOp parent";
-        anyFailures = true;
-        continue;
-      }
+      auto oldParentInst = cast<InstanceOp>(*instRecord->getInstance());
       auto newParent = oldParentInst->getParentOfType<FModuleLike>();
       LLVM_DEBUG(llvm::dbgs() << "- Updating " << oldParentInst << "\n");
       auto newParentInst = cast<InstanceOp>(
