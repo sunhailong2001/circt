@@ -70,6 +70,20 @@ hw.module @test_no_ssa_cycle(in %a: i1, in %b: i1,
   hw.output %ab, %aba, %test, %ba : i1, i1, i1, i1
 }
 
+// CHECK-LABEL: hw.module @test_keep_early_non_logic_user
+hw.module @test_keep_early_non_logic_user(in %clk: !seq.clock, in %a: i1, in %b: i1,
+                                          out out0: i1, out out1: i1) {
+  // CHECK: %[[AB:.+]] = comb.and %a, %b
+  // CHECK: %[[REG:.+]] = seq.compreg %[[AB]], %clk : i1
+  // CHECK: %[[BA:.+]] = comb.and %b, %a
+  // CHECK-NEXT: %[[CHOICE:.+]] = synth.choice %[[AB]], %[[BA]] : i1
+  // CHECK: hw.output %[[REG]], %[[CHOICE]] : i1, i1
+  %ab = comb.and %a, %b {synth.test.fc_equiv_class = 9} : i1
+  %reg = seq.compreg %ab, %clk : i1
+  %ba = comb.and %b, %a {synth.test.fc_equiv_class = 9} : i1
+  hw.output %reg, %ba : i1, i1
+}
+
 // CHECK-LABEL: hw.module @test_xor_inv_equiv
 hw.module @test_xor_inv_equiv(in %a: i1, in %b: i1, out out0: i1, out out1: i1) {
   // CHECK: %[[XOR_INV:.+]] = synth.xor_inv %a, %b
