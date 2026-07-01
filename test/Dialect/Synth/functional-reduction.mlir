@@ -59,15 +59,30 @@ hw.module @test_inversion_equiv(in %a: i1, in %b: i1, out out0: i1, out out1: i1
 hw.module @test_no_ssa_cycle(in %a: i1, in %b: i1,
                              out out0: i1, out out1: i1, out out2: i1, out out3: i1) {
 // CHECK: %[[AB:.+]] = synth.aig.and_inv %a, %b
+// CHECK: %[[ABA:.+]] = synth.aig.and_inv %[[AB]], %a
+// CHECK: %[[TEST:.+]] = synth.aig.and_inv not %[[AB]], not %[[ABA]]
 // CHECK: %[[BA:.+]] = synth.aig.and_inv %b, %a
 // CHECK: %[[CHOICE:.+]] = synth.choice %[[AB]], %[[BA]]
-// CHECK: %[[TEST:.+]] = synth.aig.and_inv not %[[CHOICE]], not %[[CHOICE]]
 // CHECK: hw.output %[[CHOICE]], %[[CHOICE]], %[[TEST]], %[[CHOICE]]
   %ab = synth.aig.and_inv %a, %b {synth.test.fc_equiv_class = 7} : i1
   %aba = synth.aig.and_inv %ab, %a {synth.test.fc_equiv_class = 7} : i1
   %test = synth.aig.and_inv not %ab, not %aba {synth.test.fc_equiv_class = 8} : i1
   %ba = synth.aig.and_inv %b, %a {synth.test.fc_equiv_class = 7} : i1
   hw.output %ab, %aba, %test, %ba : i1, i1, i1, i1
+}
+
+// CHECK-LABEL: hw.module @test_keep_early_non_logic_user
+hw.module @test_keep_early_non_logic_user(in %clk: !seq.clock, in %a: i1, in %b: i1,
+                                          out out0: i1, out out1: i1) {
+  // CHECK: %[[AB:.+]] = comb.and %a, %b
+  // CHECK: %[[REG:.+]] = seq.compreg %[[AB]], %clk : i1
+  // CHECK: %[[BA:.+]] = comb.and %b, %a
+  // CHECK-NEXT: %[[CHOICE:.+]] = synth.choice %[[AB]], %[[BA]] : i1
+  // CHECK: hw.output %[[REG]], %[[CHOICE]] : i1, i1
+  %ab = comb.and %a, %b {synth.test.fc_equiv_class = 9} : i1
+  %reg = seq.compreg %ab, %clk : i1
+  %ba = comb.and %b, %a {synth.test.fc_equiv_class = 9} : i1
+  hw.output %reg, %ba : i1, i1
 }
 
 // CHECK-LABEL: hw.module @test_xor_inv_equiv
