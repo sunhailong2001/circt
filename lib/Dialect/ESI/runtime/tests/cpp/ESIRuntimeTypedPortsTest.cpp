@@ -967,6 +967,29 @@ TEST(TypedPortsTest, ReadChannelPortPollingRetriesFlattenedSegmentedMessage) {
   EXPECT_EQ(secondOut.getData(), secondExpected.getData());
 }
 
+TEST(TypedPortsTest, ReadChannelPortPollingRetriesZeroWidthMessage) {
+  VoidType voidType("void");
+  CallbackDrivenMockReadPort mock(&voidType);
+  mock.connect();
+  mock.setMaxDataQueueMsgs(1);
+
+  uint8_t placeholder = 0;
+  EXPECT_TRUE(mock.deliver(std::make_unique<MessageData>(&placeholder, 1)));
+  EXPECT_FALSE(mock.deliver(std::make_unique<MessageData>(&placeholder, 1)));
+  EXPECT_TRUE(mock.hasPending());
+
+  MessageData firstOut;
+  mock.read(firstOut);
+  EXPECT_TRUE(firstOut.empty());
+
+  EXPECT_TRUE(mock.retryPending());
+  EXPECT_FALSE(mock.hasPending());
+
+  MessageData secondOut;
+  mock.read(secondOut);
+  EXPECT_TRUE(secondOut.empty());
+}
+
 TEST(TypedPortsTest, ReadChannelPortPollingReadAsyncThrowsWhenDisconnected) {
   UIntType uint32("ui32", 32);
   CallbackDrivenMockReadPort mock(&uint32);
