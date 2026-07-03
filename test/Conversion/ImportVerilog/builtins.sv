@@ -582,18 +582,18 @@ module SampleValueBuiltins #() (
 
   // CHECK: moore.procedure always {
   // CHECK: [[D:%.+]] = moore.read [[DATAWIRE]] : <l8>
-  // CHECK: [[RED:%.+]] = moore.reduce_xor [[D]] : l8 -> l1
+  // CHECK: [[KNOWN:%.+]] = moore.bool_cast [[D]] : l8 -> l1
   // CHECK: [[X:%.+]] = moore.constant bX : l1
-  // CHECK: [[CEQ:%.+]] = moore.case_eq [[RED]], [[X]] : l1
+  // CHECK: [[CEQ:%.+]] = moore.case_eq [[KNOWN]], [[X]] : l1
   // CHECK: [[CEQ_I1:%.+]] = moore.to_builtin_int [[CEQ]] : i1
   // CHECK: ltl.clock [[CEQ_I1]]
   isunknown_data: assert property (@(posedge clk_i) $isunknown(data_i));
 
   // CHECK: moore.procedure always {
   // CHECK: [[D:%.+]] = moore.read [[DATAWIRE]] : <l8>
-  // CHECK: [[RED:%.+]] = moore.reduce_xor [[D]] : l8 -> l1
+  // CHECK: [[KNOWN:%.+]] = moore.bool_cast [[D]] : l8 -> l1
   // CHECK: [[X:%.+]] = moore.constant bX : l1
-  // CHECK: [[ISUNKNOWN:%.+]] = moore.case_eq [[RED]], [[X]] : l1
+  // CHECK: [[ISUNKNOWN:%.+]] = moore.case_eq [[KNOWN]], [[X]] : l1
   // CHECK: [[ISUNKNOWN_I1:%.+]] = moore.to_builtin_int [[ISUNKNOWN]] : i1
   // CHECK: [[D_L2I:%.+]] = moore.logic_to_int [[D]] : l8
   // CHECK: [[DB:%.+]] = moore.to_builtin_int [[D_L2I]] : i8
@@ -617,9 +617,9 @@ module SampleValueBuiltins #() (
 
   // CHECK: moore.procedure always {
   // CHECK: [[D:%.+]] = moore.read [[DATAWIRE]] : <l8>
-  // CHECK: [[RED:%.+]] = moore.reduce_xor [[D]] : l8 -> l1
+  // CHECK: [[KNOWN:%.+]] = moore.bool_cast [[D]] : l8 -> l1
   // CHECK: [[X:%.+]] = moore.constant bX : l1
-  // CHECK: [[ISUNKNOWN:%.+]] = moore.case_eq [[RED]], [[X]] : l1
+  // CHECK: [[ISUNKNOWN:%.+]] = moore.case_eq [[KNOWN]], [[X]] : l1
   // CHECK: [[ISUNKNOWN_I1:%.+]] = moore.to_builtin_int [[ISUNKNOWN]] : i1
   // CHECK: [[D_L2I:%.+]] = moore.logic_to_int [[D]] : l8
   // CHECK: [[DB:%.+]] = moore.to_builtin_int [[D_L2I]] : i8

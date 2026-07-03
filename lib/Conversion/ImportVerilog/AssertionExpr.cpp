@@ -386,15 +386,15 @@ FailureOr<Value> Context::convertAssertionSystemCallArity1(
 
 static Value getIsUnknown(OpBuilder &builder, Location loc, Value value,
                           moore::IntType valTy, MLIRContext *ctx) {
-  Value bitVal = value;
-  if (valTy.getWidth() > 1) {
-    auto mooreI1Type = moore::IntType::get(ctx, 1, valTy.getDomain());
-    bitVal = moore::ReduceXorOp::create(builder, loc, mooreI1Type, value);
+  if (valTy.getDomain() != Domain::FourValued) {
+    auto bitType = moore::IntType::get(ctx, 1, Domain::TwoValued);
+    return moore::ConstantOp::create(builder, loc, bitType, 0).getResult();
   }
 
   auto xType = moore::IntType::get(ctx, 1, moore::Domain::FourValued);
   auto xValue = FVInt::getAllX(1);
   auto xConst = moore::ConstantOp::create(builder, loc, xType, xValue);
+  Value bitVal = moore::BoolCastOp::create(builder, loc, value);
 
   return moore::CaseEqOp::create(builder, loc, bitVal, xConst).getResult();
 }
@@ -466,7 +466,7 @@ Value Context::convertAssertionCallExpression(
          subroutine.knownNameId == slang::parsing::KnownSystemName::OneHot0) &&
         (valTy.getDomain() == Domain::FourValued)) {
       // In SystemVerilog, these system only returns 1b1 if the expression is
-      // fully known and the condition is met. So if any x or y bits, then
+      // fully known and the condition is met. So if any x or z bits, then
       // these must return 1'b0.
 
       // Detect if input contain unknown bits.
