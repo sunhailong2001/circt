@@ -405,6 +405,36 @@ private:
   std::unique_ptr<SegmentedMessageData> pending;
 };
 
+TEST(TypedPortsTest, ReadChannelPortVoidRetriesStrippedPlaceholder) {
+  VoidType voidType("void");
+  CallbackDrivenMockReadPort mock(&voidType);
+  size_t callbackAttempts = 0;
+
+  mock.connect([&](std::unique_ptr<SegmentedMessageData> &msg) {
+    ++callbackAttempts;
+    EXPECT_TRUE(msg);
+    EXPECT_EQ(msg->totalSize(), 0u);
+    return callbackAttempts > 1;
+  });
+
+  EXPECT_FALSE(
+      mock.deliver(std::make_unique<MessageData>(std::vector<uint8_t>{0})));
+  EXPECT_TRUE(mock.hasPending());
+  EXPECT_TRUE(mock.retryPending());
+  EXPECT_FALSE(mock.hasPending());
+  EXPECT_EQ(callbackAttempts, 2u);
+}
+
+TEST(TypedPortsTest, ReadChannelPortVoidRejectsOversizedPayload) {
+  VoidType voidType("void");
+  CallbackDrivenMockReadPort mock(&voidType);
+
+  mock.connect([](std::unique_ptr<SegmentedMessageData> &) { return true; });
+  EXPECT_THROW(
+      mock.deliver(std::make_unique<MessageData>(std::vector<uint8_t>{0, 0})),
+      std::runtime_error);
+}
+
 class ThrowOnCopyReadCallback {
 public:
   explicit ThrowOnCopyReadCallback(std::shared_ptr<bool> shouldThrow)

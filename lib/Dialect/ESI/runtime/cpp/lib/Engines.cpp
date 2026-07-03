@@ -77,7 +77,7 @@ public:
                                AppIDPath idPath, const std::string &channelName)
       : ReadChannelPort(type), engine(engine), idPath(idPath),
         channelName(channelName) {
-    bufferSize = (type->getBitWidth() / 8) + 1;
+    bufferSize = getFrameSizeBytes() + 1;
   }
 
   // Write the location of the buffer to the MMIO space.
