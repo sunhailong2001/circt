@@ -111,4 +111,17 @@ hw.module @test_mux_inv_equiv(in %c: i1, in %a: i1, in %b: i1, out out0: i1, out
   hw.output %0, %4 : i1, i1
 }
 
+// CHECK-LABEL: hw.module @test_no_use_before_def
+hw.module @test_no_use_before_def(in %a: i1, in %b: i1, in %c: i1,
+                                  out out0: i1, out out1: i1, out out2: i1) {
+  // CHECK: %[[AB:.+]] = synth.aig.and_inv %a, %b
+  // CHECK-NEXT: %[[USER:.+]] = comb.or %[[AB]], %c
+  // CHECK-NEXT: %[[BA:.+]] = synth.aig.and_inv %b, %a
+  // CHECK-NEXT: %[[CHOICE:.+]] = synth.choice %[[AB]], %[[BA]]
+  // CHECK-NEXT: hw.output %[[USER]], %[[CHOICE]], %[[CHOICE]]
+  %ab = synth.aig.and_inv %a, %b {synth.test.fc_equiv_class = 13} : i1
+  %user = comb.or %ab, %c : i1
+  %ba = synth.aig.and_inv %b, %a {synth.test.fc_equiv_class = 13} : i1
+  hw.output %user, %ab, %ba : i1, i1, i1
+}
 
