@@ -59,9 +59,10 @@ hw.module @test_inversion_equiv(in %a: i1, in %b: i1, out out0: i1, out out1: i1
 hw.module @test_no_ssa_cycle(in %a: i1, in %b: i1,
                              out out0: i1, out out1: i1, out out2: i1, out out3: i1) {
 // CHECK: %[[AB:.+]] = synth.aig.and_inv %a, %b
+// CHECK: %[[ABA:.+]] = synth.aig.and_inv %[[AB]], %a
+// CHECK: %[[TEST:.+]] = synth.aig.and_inv not %[[AB]], not %[[ABA]]
 // CHECK: %[[BA:.+]] = synth.aig.and_inv %b, %a
 // CHECK: %[[CHOICE:.+]] = synth.choice %[[AB]], %[[BA]]
-// CHECK: %[[TEST:.+]] = synth.aig.and_inv not %[[CHOICE]], not %[[CHOICE]]
 // CHECK: hw.output %[[CHOICE]], %[[CHOICE]], %[[TEST]], %[[CHOICE]]
   %ab = synth.aig.and_inv %a, %b {synth.test.fc_equiv_class = 7} : i1
   %aba = synth.aig.and_inv %ab, %a {synth.test.fc_equiv_class = 7} : i1
