@@ -405,6 +405,42 @@ private:
   std::unique_ptr<SegmentedMessageData> pending;
 };
 
+TEST(TypedPortsTest, ReadChannelPortZeroWidthAcceptsEmptyAndPlaceholder) {
+  VoidType voidType("void");
+  CallbackDrivenMockReadPort mock(&voidType);
+
+  size_t callbackCalls = 0;
+  mock.connect([&](MessageData data) {
+    ++callbackCalls;
+    EXPECT_EQ(data.getSize(), 0u);
+    return true;
+  });
+
+  EXPECT_TRUE(mock.deliver(std::make_unique<MessageData>()));
+
+  uint8_t placeholder = 0;
+  EXPECT_TRUE(mock.deliver(std::make_unique<MessageData>(&placeholder, 1)));
+
+  EXPECT_EQ(callbackCalls, 2u);
+  EXPECT_EQ(mock.numActiveCallbacks(), 0u);
+}
+
+TEST(TypedPortsTest, ReadChannelPortZeroWidthRejectsOversizedPayload) {
+  VoidType voidType("void");
+  CallbackDrivenMockReadPort mock(&voidType);
+
+  mock.connect([](MessageData) {
+    ADD_FAILURE() << "oversized zero-width payload reached callback";
+    return true;
+  });
+
+  std::vector<uint8_t> oversized = {0, 0};
+  EXPECT_THROW(
+      mock.deliver(std::make_unique<MessageData>(std::move(oversized))),
+      std::runtime_error);
+  EXPECT_EQ(mock.numActiveCallbacks(), 0u);
+}
+
 class ThrowOnCopyReadCallback {
 public:
   explicit ThrowOnCopyReadCallback(std::shared_ptr<bool> shouldThrow)
