@@ -59,9 +59,10 @@ hw.module @test_inversion_equiv(in %a: i1, in %b: i1, out out0: i1, out out1: i1
 hw.module @test_no_ssa_cycle(in %a: i1, in %b: i1,
                              out out0: i1, out out1: i1, out out2: i1, out out3: i1) {
 // CHECK: %[[AB:.+]] = synth.aig.and_inv %a, %b
+// CHECK: %[[ABA:.+]] = synth.aig.and_inv %[[AB]], %a
+// CHECK: %[[TEST:.+]] = synth.aig.and_inv not %[[AB]], not %[[ABA]]
 // CHECK: %[[BA:.+]] = synth.aig.and_inv %b, %a
 // CHECK: %[[CHOICE:.+]] = synth.choice %[[AB]], %[[BA]]
-// CHECK: %[[TEST:.+]] = synth.aig.and_inv not %[[CHOICE]], not %[[CHOICE]]
 // CHECK: hw.output %[[CHOICE]], %[[CHOICE]], %[[TEST]], %[[CHOICE]]
   %ab = synth.aig.and_inv %a, %b {synth.test.fc_equiv_class = 7} : i1
   %aba = synth.aig.and_inv %ab, %a {synth.test.fc_equiv_class = 7} : i1
@@ -111,4 +112,17 @@ hw.module @test_mux_inv_equiv(in %c: i1, in %a: i1, in %b: i1, out out0: i1, out
   hw.output %0, %4 : i1, i1
 }
 
+// CHECK-LABEL: hw.module @test_no_use_before_def
+hw.module @test_no_use_before_def(in %a: i1, in %b: i1, in %c: i1,
+                                  out out0: i1, out out1: i1, out out2: i1) {
+  // CHECK: %[[AB:.+]] = synth.aig.and_inv %a, %b
+  // CHECK-NEXT: %[[USER:.+]] = comb.or %[[AB]], %c
+  // CHECK-NEXT: %[[BA:.+]] = synth.aig.and_inv %b, %a
+  // CHECK-NEXT: %[[CHOICE:.+]] = synth.choice %[[AB]], %[[BA]]
+  // CHECK-NEXT: hw.output %[[USER]], %[[CHOICE]], %[[CHOICE]]
+  %ab = synth.aig.and_inv %a, %b {synth.test.fc_equiv_class = 13} : i1
+  %user = comb.or %ab, %c : i1
+  %ba = synth.aig.and_inv %b, %a {synth.test.fc_equiv_class = 13} : i1
+  hw.output %user, %ab, %ba : i1, i1, i1
+}
 
