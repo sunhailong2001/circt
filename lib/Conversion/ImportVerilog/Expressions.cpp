@@ -181,6 +181,18 @@ static Value visitClassProperty(Context &context,
   return fieldRef;
 }
 
+/// Assignment pattern elements are provided in SV left-to-right index order.
+/// Moore arrays and concatenations use descending storage order, so ascending
+/// ranges such as [0:N] have to be reversed before creating aggregate values.
+template <typename RangeT>
+static void orderAssignmentPatternElements(RangeT &range,
+                                           const slang::ast::Type &type) {
+  assert(type.hasFixedRange());
+  const slang::ConstantRange &cstRange = type.getFixedRange();
+  if (cstRange.left < cstRange.right)
+    std::reverse(std::begin(range), std::end(range));
+}
+
 namespace {
 /// A visitor handling expressions that can be lowered as lvalue and rvalue.
 struct ExprVisitor {
@@ -2143,6 +2155,7 @@ struct RvalueExprVisitor : public ExprVisitor {
         return {};
 
       assert(intType.getWidth() == elements->size());
+      orderAssignmentPatternElements(*elements, *expr.type);
       std::reverse(elements->begin(), elements->end());
       return moore::ConcatOp::create(builder, loc, intType, *elements);
     }
@@ -2197,6 +2210,7 @@ struct RvalueExprVisitor : public ExprVisitor {
         return {};
 
       assert(arrayType.getSize() == elements->size());
+      orderAssignmentPatternElements(*elements, *expr.type);
       return moore::ArrayCreateOp::create(builder, loc, arrayType, *elements);
     }
 
@@ -2209,6 +2223,7 @@ struct RvalueExprVisitor : public ExprVisitor {
         return {};
 
       assert(arrayType.getSize() == elements->size());
+      orderAssignmentPatternElements(*elements, *expr.type);
       return moore::ArrayCreateOp::create(builder, loc, arrayType, *elements);
     }
 
