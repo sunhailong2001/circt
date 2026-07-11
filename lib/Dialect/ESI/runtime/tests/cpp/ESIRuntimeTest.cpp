@@ -6,6 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "esi/Ports.h"
 #include "esi/Types.h"
 #include "esi/Values.h"
 #include "gtest/gtest.h"
@@ -763,6 +764,9 @@ TEST(ESITypesTest, BitWidthCalculations) {
   EXPECT_EQ(voidType.getBitWidth(), 0)
       << "VoidType should have a 0-bit logical width; transport-level "
          "placeholder bytes are added by the channel-port base classes.";
+  ReadChannelPort voidReadPort(&voidType);
+  EXPECT_EQ(voidReadPort.getFrameSizeBytes(), 1UL)
+      << "Zero-width channel frames still need a transport placeholder byte";
 
   BitsType bitsType("bits16", 16);
   EXPECT_EQ(bitsType.getBitWidth(), 16)
