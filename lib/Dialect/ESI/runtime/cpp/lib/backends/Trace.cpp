@@ -240,7 +240,7 @@ private:
       throw std::runtime_error("unsupported type for read: " +
                                getType()->getID());
 
-    std::ptrdiff_t size = (numBits + 7) / 8;
+    std::ptrdiff_t size = getFrameSizeBytes();
     std::vector<uint8_t> bytes(size);
     for (std::ptrdiff_t i = 0; i < size; ++i)
       bytes[i] = rand() % 256;
