@@ -1167,11 +1167,11 @@ module Expressions;
 
     // CHECK: [[TMP0:%.+]] = moore.constant 43
     // CHECK: [[TMP1:%.+]] = moore.constant 9002
-    // CHECK: moore.array_create [[TMP0]], [[TMP1]] : !moore.i32, !moore.i32 -> uarray<2 x i32>
+    // CHECK: moore.array_create [[TMP1]], [[TMP0]] : !moore.i32, !moore.i32 -> uarray<2 x i32>
     arr1 = '{43, 9002};
     // CHECK: [[TMP0:%.+]] = moore.constant 43
     // CHECK: [[TMP1:%.+]] = moore.constant 9002
-    // CHECK: moore.array_create [[TMP0]], [[TMP1]] : !moore.i32, !moore.i32 -> uarray<2 x i32>
+    // CHECK: moore.array_create [[TMP1]], [[TMP0]] : !moore.i32, !moore.i32 -> uarray<2 x i32>
     arr2 = '{43, 9002};
     // CHECK: [[TMP1:%.+]] = moore.read %arr1
     // CHECK: [[TMP2:%.+]] = moore.read %arr2
@@ -1639,13 +1639,13 @@ module Expressions;
 
     // CHECK: [[TMP0:%.+]] = moore.constant 43
     // CHECK: [[TMP1:%.+]] = moore.constant 9002
-    // CHECK: moore.array_create [[TMP0]], [[TMP1]] : !moore.i32, !moore.i32 -> uarray<2 x i32>
+    // CHECK: moore.array_create [[TMP1]], [[TMP0]] : !moore.i32, !moore.i32 -> uarray<2 x i32>
     uarrayInt = '{43, 9002};
 
     // CHECK: [[TMP0:%.+]] = moore.constant 1
     // CHECK: [[TMP1:%.+]] = moore.constant 2
     // CHECK: [[TMP2:%.+]] = moore.constant 3
-    // CHECK: [[TMP3:%.+]] = moore.array_create [[TMP0]], [[TMP1]], [[TMP2]], [[TMP0]], [[TMP1]], [[TMP2]] : !moore.i4, !moore.i4, !moore.i4, !moore.i4, !moore.i4, !moore.i4 -> uarray<6 x i4>
+    // CHECK: [[TMP3:%.+]] = moore.array_create [[TMP2]], [[TMP1]], [[TMP0]], [[TMP2]], [[TMP1]], [[TMP0]] : !moore.i4, !moore.i4, !moore.i4, !moore.i4, !moore.i4, !moore.i4 -> uarray<6 x i4>
     // CHECK: moore.array_create [[TMP3]], [[TMP3]], [[TMP3]] : !moore.uarray<6 x i4>, !moore.uarray<6 x i4>, !moore.uarray<6 x i4> -> uarray<3 x uarray<6 x i4>>
     arr = '{3{'{2{4'd1, 4'd2, 4'd3}}}};
 
