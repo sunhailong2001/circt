@@ -1058,6 +1058,18 @@ TEST(TypedPortsTest,
   EXPECT_EQ(mock.numActiveCallbacks(), 0u);
 }
 
+TEST(TypedPortsTest,
+     ReadChannelPortInvokeCallbackMaintainsCountOnVoidPayloadError) {
+  VoidType voidType("void");
+  CallbackDrivenMockReadPort mock(&voidType);
+  mock.connect([](std::unique_ptr<SegmentedMessageData> &) { return true; });
+
+  uint8_t malformed[] = {0, 0};
+  EXPECT_THROW(mock.deliver(std::make_unique<MessageData>(malformed, 2)),
+               std::runtime_error);
+  EXPECT_EQ(mock.numActiveCallbacks(), 0u);
+}
+
 TEST(TypedPortsTest, TypedWritePortSegmentedMessageData) {
   // Use any type — SegmentedMessageData skips type checks.
   UIntType uint32("ui32", 32);

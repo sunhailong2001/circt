@@ -113,21 +113,21 @@ bool ReadChannelPort::invokeCallback(
       callbackCv.notify_all();
   };
 
-  // For zero-width port types (e.g. `VoidType`), transports send a single
-  // placeholder byte to satisfy the "every message is at least one byte"
-  // invariant. Only strip the payload when it matches that encoding so
-  // malformed transport data is surfaced instead of silently discarded. The
-  // matching pad happens in `WriteChannelPort::maybePadEmptyMessage`.
-  if (msg && type && type->getBitWidth() == 0) {
-    if (msg->totalSize() == 1) {
-      msg = std::make_unique<MessageData>();
-    } else {
-      throw std::runtime_error(
-          "zero-width message must use a single-byte placeholder payload");
-    }
-  }
-
   try {
+    // For zero-width port types (e.g. `VoidType`), transports send a single
+    // placeholder byte to satisfy the "every message is at least one byte"
+    // invariant. Only strip the payload when it matches that encoding so
+    // malformed transport data is surfaced instead of silently discarded. The
+    // matching pad happens in `WriteChannelPort::maybePadEmptyMessage`.
+    if (msg && type && type->getBitWidth() == 0) {
+      if (msg->totalSize() == 1) {
+        msg = std::make_unique<MessageData>();
+      } else {
+        throw std::runtime_error(
+            "zero-width message must use a single-byte placeholder payload");
+      }
+    }
+
     bool consumed = activeCallback(msg);
     finish();
     return consumed;
