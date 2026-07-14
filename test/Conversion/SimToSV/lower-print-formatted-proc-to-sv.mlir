@@ -61,6 +61,22 @@ hw.module @all_format_fragments(
   }
 }
 
+// CHECK-LABEL: hw.module @dynamic_string_concat
+hw.module @dynamic_string_concat(in %clk : i1) {
+  hw.triggered posedge %clk {
+    %dynBase = sv.sformatf "dyn"
+    %dyn = "builtin.unrealized_conversion_cast"(%dynBase) : (!hw.string) -> !sim.dstring
+    %lhs = sim.string.literal "hello"
+    %str = sim.string.concat (%lhs, %dyn)
+    %fmt = sim.fmt.string %str specifierWidth 12 : !sim.dstring
+    // CHECK: %[[DYN:.+]] = sv.sformatf "dyn"
+    // CHECK-NEXT: %[[LHS:.+]] = sv.constantStr "hello"
+    // CHECK-NEXT: %[[STR:.+]] = sv.sformatf "%s%s"(%[[LHS]], %[[DYN]]) : !hw.string, !hw.string
+    // CHECK-NEXT: sv.write "%12s"(%[[STR]]) : !hw.string
+    sim.proc.print %fmt
+  }
+}
+
 // CHECK-LABEL: hw.module @nested_concat_order
 hw.module @nested_concat_order(in %clk : i1, in %lhs : i8, in %rhs : i8) {
   hw.triggered posedge %clk (%lhs, %rhs) : i8, i8 {
