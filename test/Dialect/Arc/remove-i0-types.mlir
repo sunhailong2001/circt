@@ -179,6 +179,40 @@ func.func @MultiElementArray(%a: !hw.array<4xi32>) -> !hw.array<4xi32> {
   return %a : !hw.array<4xi32>
 }
 
+// Multi-element arrays of i0 are zero-width and must be dropped entirely.
+// Previously ArrayType::get(convertType(i0), N) crashed on a null element type.
+// CHECK-LABEL: func.func @MultiElementArrayI0()
+// CHECK-NEXT:    return
+// CHECK-NEXT:  }
+func.func @MultiElementArrayI0(%a: !hw.array<3xi0>) -> !hw.array<3xi0> {
+  return %a : !hw.array<3xi0>
+}
+
+// Nested arrays whose element type collapses to i0 are also dropped.
+// CHECK-LABEL: func.func @NestedArrayI0()
+// CHECK-NEXT:    return
+// CHECK-NEXT:  }
+func.func @NestedArrayI0(%a: !hw.array<2x!hw.array<1xi0>>) -> !hw.array<2x!hw.array<1xi0>> {
+  return %a : !hw.array<2x!hw.array<1xi0>>
+}
+
+// Zero-width state types are removed from the signature.
+// CHECK-LABEL: func.func @StateTypeI0()
+// CHECK-NEXT:    return
+// CHECK-NEXT:  }
+func.func @StateTypeI0(%a: !arc.state<i0>) {
+  return
+}
+
+// Aggregate constants of multi-element i0 arrays are erased.
+// CHECK-LABEL: func.func @AggregateConstantArrayI0()
+// CHECK-NEXT:    return
+// CHECK-NEXT:  }
+func.func @AggregateConstantArrayI0() -> !hw.array<2xi0> {
+  %0 = hw.aggregate_constant [0 : i0, 0 : i0] : !hw.array<2xi0>
+  return %0 : !hw.array<2xi0>
+}
+
 // Non-i0 types should pass through unchanged.
 // CHECK-LABEL: func.func @NoI0(%arg0: i32, %arg1: i64) -> i32
 // CHECK-NEXT:    return %arg0 : i32
