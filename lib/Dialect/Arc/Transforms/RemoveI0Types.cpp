@@ -181,7 +181,17 @@ struct ConvertAggregateConstant
   LogicalResult
   matchAndRewrite(hw::AggregateConstantOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    Type resultType = getTypeConverter()->convertType(op.getResult().getType());
+    SmallVector<Type, 1> convertedTypes;
+    if (failed(getTypeConverter()->convertType(op.getResult().getType(),
+                                               convertedTypes)))
+      return failure();
+    // Entirely zero-width aggregates (e.g. array<Nxi0>) are dropped.
+    if (convertedTypes.empty()) {
+      rewriter.eraseOp(op);
+      return success();
+    }
+    assert(convertedTypes.size() == 1);
+    Type resultType = convertedTypes.front();
 
     // Recursively rewrite the attribute.
     Attribute newFields =
@@ -245,15 +255,22 @@ void RemoveI0TypesPass::runOnOperation() {
   // Composite types - recursively apply type conversion to inner types.
   converter.addConversion([&converter](hw::ArrayType type,
                                        SmallVectorImpl<Type> &types) {
+    SmallVector<Type, 1> convertedElement;
+    if (failed(converter.convertType(type.getElementType(), convertedElement)))
+      return failure();
+    // Element type was dropped (e.g. i0) — drop the whole array. Calling
+    // ArrayType::get with a null element type would crash.
+    if (convertedElement.empty())
+      return success();
+    assert(convertedElement.size() == 1);
+
     // If the array has only one element, we replace the array with the element.
     if (type.getNumElements() == 1) {
-      if (Type converted = converter.convertType(type.getElementType()))
-        types.push_back(converted);
+      types.push_back(convertedElement.front());
       return success();
     }
-    // Recursively apply type conversion to inner types.
-    types.push_back(hw::ArrayType::get(
-        converter.convertType(type.getElementType()), type.getNumElements()));
+    types.push_back(
+        hw::ArrayType::get(convertedElement.front(), type.getNumElements()));
     return success();
   });
   converter.addConversion([&converter](hw::StructType type) -> Type {
@@ -290,10 +307,14 @@ void RemoveI0TypesPass::runOnOperation() {
       });
   converter.addConversion(
       [&converter](arc::StateType type, SmallVectorImpl<Type> &types) {
-        if (failed(converter.convertType(type.getType(), types)))
+        SmallVector<Type, 1> innerTypes;
+        if (failed(converter.convertType(type.getType(), innerTypes)))
           return failure();
-        assert(types.size() == 1);
-        types[0] = arc::StateType::get(types[0]);
+        // state<i0> (and other fully-dropped inner types) is removed entirely.
+        if (innerTypes.empty())
+          return success();
+        assert(innerTypes.size() == 1);
+        types.push_back(arc::StateType::get(innerTypes.front()));
         return success();
       });
 
