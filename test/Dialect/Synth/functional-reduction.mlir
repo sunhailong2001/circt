@@ -55,13 +55,33 @@ hw.module @test_inversion_equiv(in %a: i1, in %b: i1, out out0: i1, out out1: i1
   hw.output %0, %1 : i1, i1
 }
 
+// A reachable inverted member must be rewritten through choiceNot. Using
+// choice here would flip the value (e.g. replace always-true with always-false).
+// CHECK-LABEL: hw.module @test_reachable_inverted_member
+hw.module @test_reachable_inverted_member(in %a: i1, in %b: i1,
+                                          out out0: i1, out out1: i1) {
+  // CHECK: %[[AND:.+]] = synth.aig.and_inv not %a, not %b
+  // CHECK: %[[OR:.+]] = comb.or %a, %b
+  // CHECK: %[[NOTMEMBER:.+]] = synth.aig.and_inv not %[[OR]]
+  // CHECK: %[[CHOICE:.+]] = synth.choice %[[AND]], %[[NOTMEMBER]] : i1
+  // CHECK: %[[CHOICENOT:.+]] = synth.aig.and_inv not %[[CHOICE]]
+  // CHECK: hw.output %[[CHOICENOT]], %[[CHOICENOT]]
+  %0 = synth.aig.and_inv not %a, not %b {synth.test.fc_equiv_class = 13} : i1
+  %1 = comb.or %a, %b {synth.test.fc_equiv_class = 13} : i1
+  %2 = synth.aig.and_inv not %0 {synth.test.fc_equiv_class = 13} : i1
+  hw.output %1, %2 : i1, i1
+}
+
 // CHECK-LABEL: hw.module @test_no_ssa_cycle
 hw.module @test_no_ssa_cycle(in %a: i1, in %b: i1,
                              out out0: i1, out out1: i1, out out2: i1, out out3: i1) {
+// Earlier reachable users stay on the original equivalent value; only users
+// after the inserted choice are rewritten.
 // CHECK: %[[AB:.+]] = synth.aig.and_inv %a, %b
+// CHECK: %[[ABA:.+]] = synth.aig.and_inv %[[AB]], %a
+// CHECK: %[[TEST:.+]] = synth.aig.and_inv not %[[AB]], not %[[ABA]]
 // CHECK: %[[BA:.+]] = synth.aig.and_inv %b, %a
 // CHECK: %[[CHOICE:.+]] = synth.choice %[[AB]], %[[BA]]
-// CHECK: %[[TEST:.+]] = synth.aig.and_inv not %[[CHOICE]], not %[[CHOICE]]
 // CHECK: hw.output %[[CHOICE]], %[[CHOICE]], %[[TEST]], %[[CHOICE]]
   %ab = synth.aig.and_inv %a, %b {synth.test.fc_equiv_class = 7} : i1
   %aba = synth.aig.and_inv %ab, %a {synth.test.fc_equiv_class = 7} : i1

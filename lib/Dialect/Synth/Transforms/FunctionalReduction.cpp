@@ -573,7 +573,8 @@ void FunctionalReductionSolver::mergeEquivalentNodes() {
           // in the same block so merging cannot introduce use-before-def edges
           // or SSA cycles.
           return shouldReplaceOwner(user) &&
-                 user->getBlock() == defOp->getBlock();
+                 user->getBlock() == defOp->getBlock() &&
+                 defOp->isBeforeInBlock(user);
         });
       };
 
@@ -640,6 +641,12 @@ void FunctionalReductionSolver::mergeEquivalentNodes() {
       operands.push_back(planned.operandInverter.getResult());
     }
 
+    // Reachable members may also be inverted relative to the representative.
+    // Track that so we materialize `choiceNot` even when every inverted member
+    // was filtered into the reachable set.
+    for (const auto &member : plannedReachable)
+      hasInvertedMember |= member.inverted;
+
     auto choice = synth::ChoiceOp::create(builder, representative.getLoc(),
                                           representative.getType(), operands);
 
@@ -682,11 +689,17 @@ void FunctionalReductionSolver::mergeEquivalentNodes() {
       replaceValue(member);
 
     // Reachable members are redundant here so either replace their uses with
-    // choice or erase if they have no uses left.
+    // the polarity-correct choice value or erase if they have no uses left.
+    // Inverted reachable members must use `choiceNot`; rewriting them to
+    // `choice` silently flips their boolean value.
     for (auto &member : plan.reachableMembers) {
-      member.original.replaceUsesWithIf(plan.choice, [&](OpOperand &use) {
+      Value replacement = member.inverted ? plan.choiceNot.getResult()
+                                          : plan.choice.getResult();
+      Operation *replacementOp = replacement.getDefiningOp();
+      member.original.replaceUsesWithIf(replacement, [&](OpOperand &use) {
         auto *user = use.getOwner();
-        return user->getBlock() == plan.choice->getBlock();
+        return user->getBlock() == replacementOp->getBlock() &&
+               replacementOp->isBeforeInBlock(user);
       });
       if (member.original.use_empty())
         member.original.getDefiningOp()->erase();
