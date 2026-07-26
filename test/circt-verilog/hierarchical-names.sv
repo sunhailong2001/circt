@@ -102,8 +102,8 @@ endmodule
 // CHECK: hw.module private @LeafInst(in %TopRoot.root_val : !llhd.ref<i1>) {
 // CHECK: }
 
-// Regression test for cross-module hierarchical name deduplication bug.
-// Child is instantiated multiple times, GrandChild has upward reference, Top2 has cross-hierarchy.
+// Regression test for hierarchical name collection with multiple instances of
+// the same child module and an upward hierarchical write from GrandChild.
 module Child();
   logic i;
   GrandChild gc();
@@ -120,8 +120,6 @@ endmodule
 
 module Top2();
   Child c2();
-  logic x;
-  assign x = Top1.c1.i;
 endmodule
 
 // CHECK: hw.module private @Child()
@@ -132,6 +130,6 @@ endmodule
 // CHECK: hw.module @Top1() {
 // CHECK:   hw.instance "c1" @Child() -> ()
 
-// CHECK: hw.module @Top2(in %c1.i : !llhd.ref<i1>) {
+// CHECK: hw.module @Top2() {
 // CHECK:   hw.instance "c2" @Child() -> ()
 

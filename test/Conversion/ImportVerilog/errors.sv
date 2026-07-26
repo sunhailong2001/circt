@@ -237,6 +237,40 @@ module Foo;
 endmodule
 
 // -----
+// Cross-hierarchy hierarchical references must not invent undriven ports.
+module HierRefTop(input i, output o);
+  HierRefA A();
+  HierRefB B();
+  assign A.i = i;
+  assign o = B.o;
+endmodule
+module HierRefA;
+  wire i, y;
+  // expected-error @below {{unsupported hierarchical name `x`: cross-hierarchy references are not supported}}
+  assign B.x = !i;
+  assign y = !B.y;
+endmodule
+module HierRefB;
+  wire x, y, o;
+  assign y = x, o = A.y;
+endmodule
+
+// -----
+// Cross-top hierarchical references must not invent undriven top-level inputs.
+module CrossTopChild();
+  logic i;
+endmodule
+module CrossTop1();
+  CrossTopChild c1();
+endmodule
+module CrossTop2();
+  CrossTopChild c2();
+  logic x;
+  // expected-error @below {{unsupported hierarchical name `i`: cross-hierarchy references are not supported}}
+  assign x = CrossTop1.c1.i;
+endmodule
+
+// -----
 module Foo;
   reg i;
   wire o;

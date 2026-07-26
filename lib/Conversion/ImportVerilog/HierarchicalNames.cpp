@@ -19,12 +19,18 @@ struct InstBodyVisitor
                                     /*VisitExpressions=*/true> {
   InstBodyVisitor(
       Context &context, const slang::ast::Symbol &outermostModule,
-      DenseSet<const slang::ast::InstanceBodySymbol *> &visitedBodies)
+      DenseSet<const slang::ast::InstanceBodySymbol *> &visitedBodies,
+      bool &hasFailed)
       : context(context), outermostModule(outermostModule),
-        visitedBodies(visitedBodies) {}
+        visitedBodies(visitedBodies), hasFailed(hasFailed) {}
 
   void handle(const slang::ast::InstanceSymbol &instNode) {
-    traverseInstanceBody(context, instNode, visitedBodies);
+    if (hasFailed)
+      return;
+    if (mlir::failed(traverseInstanceBody(context, instNode, visitedBodies))) {
+      hasFailed = true;
+      return;
+    }
     // Also visit port connection expressions to find hier refs used as
     // port arguments (e.g., .in_val(b_inst.local_val)).
     for (auto *conn : instNode.getPortConnections())
@@ -33,6 +39,9 @@ struct InstBodyVisitor
   }
 
   void handle(const slang::ast::HierarchicalValueExpression &expr) {
+    if (hasFailed)
+      return;
+
     auto builder = context.builder;
     auto *currentInstBody =
         expr.symbol.getParentScope()->getContainingInstance();
@@ -104,7 +113,7 @@ struct InstBodyVisitor
           }
         };
 
-    // Determine whether hierarchical names are upward or downward.
+    // Target lives under the referring module: export it upward as an output.
     auto *tempInstBody = currentInstBody;
     while (tempInstBody) {
       tempInstBody = tempInstBody->parentInstance->getParentScope()
@@ -115,6 +124,31 @@ struct InstBodyVisitor
       }
     }
 
+    // Otherwise the referrer must itself be nested under the target's module
+    // so the value can be threaded downward as an input (e.g. Leaf reading
+    // Top.root_val). Cross-top / sibling / cousin hierarchical references are
+    // not supported; inventing an undriven input port would silently
+    // miscompile.
+    bool referrerUnderTarget = false;
+    for (auto *cursor = outermostInstBody; cursor;) {
+      if (cursor == currentInstBody) {
+        referrerUnderTarget = true;
+        break;
+      }
+      if (!cursor->parentInstance)
+        break;
+      cursor =
+          cursor->parentInstance->getParentScope()->getContainingInstance();
+    }
+    if (!referrerUnderTarget) {
+      auto loc = context.convertLocation(expr.sourceRange);
+      mlir::emitError(loc) << "unsupported hierarchical name `"
+                           << expr.symbol.name
+                           << "`: cross-hierarchy references are not supported";
+      hasFailed = true;
+      return;
+    }
+
     hierName = builder.getStringAttr(currentInstBody->parentInstance->name +
                                      llvm::Twine(".") + hierName.getValue());
     collectHierarchicalPaths(outermostInstBody, false);
@@ -123,26 +157,34 @@ struct InstBodyVisitor
   Context &context;
   const slang::ast::Symbol &outermostModule;
   DenseSet<const slang::ast::InstanceBodySymbol *> &visitedBodies;
+  bool &hasFailed;
 
-  static void traverseInstanceBody(
+  static LogicalResult traverseInstanceBody(
       Context &context, const slang::ast::InstanceSymbol &symbol,
       DenseSet<const slang::ast::InstanceBodySymbol *> &visitedBodies) {
     const slang::ast::InstanceBodySymbol *body = getCanonicalBody(symbol);
-    if (visitedBodies.insert(body).second) {
-      for (auto &member : body->members()) {
-        auto &outermostModule = member.getParentScope()->asSymbol();
-        InstBodyVisitor visitor(context, outermostModule, visitedBodies);
-        member.visit(visitor);
-      }
+    if (!visitedBodies.insert(body).second)
+      return success();
+
+    bool hasFailed = false;
+    for (auto &member : body->members()) {
+      auto &outermostModule = member.getParentScope()->asSymbol();
+      InstBodyVisitor visitor(context, outermostModule, visitedBodies,
+                              hasFailed);
+      member.visit(visitor);
+      if (hasFailed)
+        return failure();
     }
+    return success();
   }
 };
 
 } // namespace
 
-void Context::traverseInstanceBody(const slang::ast::InstanceSymbol &symbol) {
+LogicalResult
+Context::traverseInstanceBody(const slang::ast::InstanceSymbol &symbol) {
   // Top-level entry point: create a fresh visitedBodies set to prevent
   // infinite recursion and to skip identical module bodies.
   DenseSet<const slang::ast::InstanceBodySymbol *> visitedBodies;
-  InstBodyVisitor::traverseInstanceBody(*this, symbol, visitedBodies);
+  return InstBodyVisitor::traverseInstanceBody(*this, symbol, visitedBodies);
 }
