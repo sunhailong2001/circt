@@ -73,10 +73,6 @@ struct AddTapsPass : public arc::impl::AddTapsBase<AddTapsPass> {
 
   // Add taps for HW wires.
   void tap(hw::WireOp wireOp) {
-    if (auto name = wireOp.getName(); name && tapWires) {
-      OpBuilder builder(wireOp);
-      buildTap(builder, wireOp.getLoc(), wireOp, *name);
-    }
     Value input = wireOp.getInput();
     // A degenerate self-referential wire (`assign w = w;`) feeds its own
     // result back as its input. Replacing all uses of the result with the
@@ -92,6 +88,10 @@ struct AddTapsPass : public arc::impl::AddTapsBase<AddTapsPass> {
         // Leave non-integer self-wires in place rather than looping forever.
         return;
       }
+    }
+    if (auto name = wireOp.getName(); name && tapWires) {
+      OpBuilder builder(wireOp);
+      buildTap(builder, wireOp.getLoc(), input, *name);
     }
     wireOp.getResult().replaceAllUsesWith(input);
     wireOp->erase();
