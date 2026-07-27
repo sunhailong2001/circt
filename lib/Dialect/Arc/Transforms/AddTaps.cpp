@@ -8,6 +8,7 @@
 
 #include "circt/Dialect/Arc/ArcOps.h"
 #include "circt/Dialect/Arc/ArcPasses.h"
+#include "circt/Dialect/HW/HWOps.h"
 #include "circt/Dialect/SV/SVOps.h"
 #include "circt/Dialect/Seq/SeqOps.h"
 #include "mlir/Pass/Pass.h"
@@ -76,7 +77,23 @@ struct AddTapsPass : public arc::impl::AddTapsBase<AddTapsPass> {
       OpBuilder builder(wireOp);
       buildTap(builder, wireOp.getLoc(), wireOp, *name);
     }
-    wireOp.getResult().replaceAllUsesWith(wireOp.getInput());
+    Value input = wireOp.getInput();
+    // A degenerate self-referential wire (`assign w = w;`) feeds its own
+    // result back as its input. Replacing all uses of the result with the
+    // input would RAUW the value with itself and never drain the use list.
+    // Such a wire carries no driver; materialize a zero constant for its
+    // users instead (two-valued interpretation of an undriven net).
+    if (input == wireOp.getResult()) {
+      if (auto intType = dyn_cast<IntegerType>(wireOp.getType())) {
+        OpBuilder builder(wireOp);
+        input = hw::ConstantOp::create(builder, wireOp.getLoc(),
+                                       APInt::getZero(intType.getWidth()));
+      } else {
+        // Leave non-integer self-wires in place rather than looping forever.
+        return;
+      }
+    }
+    wireOp.getResult().replaceAllUsesWith(input);
     wireOp->erase();
   }
 
