@@ -1813,3 +1813,10 @@ moore.module @CoroutineLowering() {
   }
   moore.output
 }
+
+// CHECK-LABEL: hw.module @MooreTypedArithSelect
+moore.module @MooreTypedArithSelect(in %s: i1, in %a: !moore.i8, in %b: !moore.i8, out o: !moore.i8) {
+  // CHECK-NOT: !moore.i8
+  %sel = arith.select %s, %a, %b : !moore.i8
+  moore.output %sel : !moore.i8
+}

@@ -476,6 +476,11 @@ OpFoldResult ExtractOp::fold(FoldAdaptor adaptor) {
 static LogicalResult extractConcatToConcatExtract(ExtractOp op,
                                                   ConcatOp innerCat,
                                                   PatternRewriter &rewriter) {
+  // Do not create a replacement that uses the operation being replaced.
+  // Otherwise extract(concat(... extract ...)) cycles hang canonicalize.
+  if (llvm::is_contained(innerCat.getInputs(), op.getResult()))
+    return failure();
+
   auto reversedConcatArgs = llvm::reverse(innerCat.getInputs());
   size_t beginOfFirstRelevantElement = 0;
   auto it = reversedConcatArgs.begin();
