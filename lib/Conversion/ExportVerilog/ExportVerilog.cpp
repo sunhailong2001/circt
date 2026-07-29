@@ -2530,8 +2530,12 @@ SubExprInfo ExprEmitter::emitBinary(Operation *op, VerilogPrecedence prec,
   auto operandSignReq =
       SubExprSignRequirement(emitBinaryFlags & EB_OperandSignRequirementMask);
   auto lhsInfo = emitSubExpr(op->getOperand(0), prec, operandSignReq);
-  // Bit of a kludge: if this is a comparison, don't break on either side.
-  auto lhsSpace = prec == VerilogPrecedence::Comparison ? PP::nbsp : PP::space;
+  // Bit of a kludge: if this is a comparison or equality, don't break on either
+  // side.
+  auto lhsSpace = (prec == VerilogPrecedence::Comparison ||
+                   prec == VerilogPrecedence::Equality)
+                      ? PP::nbsp
+                      : PP::space;
   // Use non-breaking space between op and RHS so breaking is consistent.
   ps << lhsSpace << syntax << PP::nbsp; // PP::space;
 
@@ -2783,7 +2787,24 @@ SubExprInfo ExprEmitter::visitComb(ICmpOp op) {
   if (op.isNotEqualZero())
     return emitUnary(op, "|", true);
 
-  auto result = emitBinary(op, Comparison, symop[pred], signop[pred]);
+  // Equality operators bind looser than relational comparisons in Verilog
+  // (IEEE 1800-2017 §11.3.2). Using Comparison here omitted parentheses for
+  // expressions like `(a == b) < c`, emitting `a == b < c` (= `a == (b < c)`).
+  VerilogPrecedence precedence = Comparison;
+  switch (op.getPredicate()) {
+  case ICmpPredicate::eq:
+  case ICmpPredicate::ne:
+  case ICmpPredicate::ceq:
+  case ICmpPredicate::cne:
+  case ICmpPredicate::weq:
+  case ICmpPredicate::wne:
+    precedence = Equality;
+    break;
+  default:
+    precedence = Comparison;
+    break;
+  }
+  auto result = emitBinary(op, precedence, symop[pred], signop[pred]);
 
   // SystemVerilog 11.8.1: "Comparison... operator results are unsigned,
   // regardless of the operands".
